@@ -26,7 +26,11 @@ export const loadCache = async (documentId: string): Promise<Result> => {
 export const storeCache = async (documentId: string): Promise<Result> => {
   const cached = await cache.get(documentId);
   if (!cached) return { status: "bad" };
-  await mongoClient.database().collection("documents").updateOne({ _id: new Bson.ObjectId(documentId) }, cached);
+  await mongoClient.database().collection("documents").updateOne(
+    { _id: new Bson.ObjectId(documentId) },
+    { $set: { lines: cached.lines } },
+    { upsert: true },
+  );
   return { status: "ok" };
 };
 
