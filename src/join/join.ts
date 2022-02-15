@@ -1,13 +1,14 @@
-import { channel } from "../main.ts";
+import { rmqChan } from "../main.ts";
 import { updateView } from "../view/mod.ts";
 import { loadCache } from "../cache/mod.ts";
+import { Bson } from "mongo";
 
 export const setupJoin = async () => {
-  await channel.declareExchange({ exchange: "join", type: "topic", durable: true });
-  await channel.declareQueue({ queue: "join", durable: true });
-  await channel.bindQueue({ exchange: "join", queue: "join", routingKey: "join.*" });
+  await rmqChan.declareExchange({ exchange: "join", type: "topic", durable: true });
+  await rmqChan.declareQueue({ queue: "join", durable: true });
+  await rmqChan.bindQueue({ exchange: "join", queue: "join", routingKey: "join.*" });
 
-  await channel.consume(
+  await rmqChan.consume(
     { queue: "join" },
     async (args, props, data) => {
       const { userId, documentId } = JSON.parse(new TextDecoder().decode(data));
@@ -15,7 +16,7 @@ export const setupJoin = async () => {
       const cacheResult = await loadCache(documentId);
       if (cacheResult.status === "ok") await updateView(documentId);
 
-      await channel.ack({ deliveryTag: args.deliveryTag });
+      await rmqChan.ack({ deliveryTag: args.deliveryTag });
     },
   );
 };

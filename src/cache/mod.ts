@@ -6,9 +6,9 @@ import { connect, parseURL } from "redis";
 const mongoClient = new MongoClient();
 await mongoClient.connect(Deno.env.get("MONGO_URI")!);
 
-const redis = await connect(parseURL(Deno.env.get("REDIS_URI")!));
+const redisClient = await connect(parseURL(Deno.env.get("REDIS_URI")!));
 export const loadCache = async (documentId: string): Promise<Result> => {
-  const cached = await redis.get(documentId);
+  const cached = await redisClient.get(documentId);
   if (cached) return { status: "ok" };
 
   const stored = await mongoClient
@@ -20,12 +20,12 @@ export const loadCache = async (documentId: string): Promise<Result> => {
 
   const { lines } = stored;
   const doc: Doc = { lines };
-  await redis.set(documentId, JSON.stringify(doc));
+  await redisClient.set(documentId, JSON.stringify(doc));
   return { status: "ok" };
 };
 
 export const storeCache = async (documentId: string): Promise<Result> => {
-  const cached = await redis.get(documentId);
+  const cached = await redisClient.get(documentId);
   if (!cached) return { status: "bad" };
 
   const doc: Doc = JSON.parse(cached);
@@ -38,7 +38,7 @@ export const storeCache = async (documentId: string): Promise<Result> => {
 };
 
 export const fetchCache = async (documentId: string): Promise<Result<{}, { doc: Doc }>> => {
-  const cached = await redis.get(documentId);
+  const cached = await redisClient.get(documentId);
   if (!cached) return { status: "bad" };
 
   const doc: Doc = JSON.parse(cached);
@@ -47,7 +47,7 @@ export const fetchCache = async (documentId: string): Promise<Result<{}, { doc: 
 
 export const overrideCache = async (documentId: string, doc: Doc): Promise<Result> => {
   try {
-    await redis.set(documentId, JSON.stringify(doc));
+    await redisClient.set(documentId, JSON.stringify(doc));
     return { status: "ok" };
   } catch (e) {
     console.dir(e);

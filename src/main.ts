@@ -4,15 +4,15 @@ import { setupEdit } from "./edit/mod.ts";
 import { setupSave } from "./save/mod.ts";
 import { setupView } from "./view/mod.ts";
 
-export const connection = await connect(Deno.env.get("RABBITMQ_URI")!);
-export const channel = await connection.openChannel();
+const rmqConn = await connect(Deno.env.get("RABBITMQ_URI")!);
+export const rmqChan = await rmqConn.openChannel();
 
 await setupView();
 await setupJoin();
 await setupEdit();
 await setupSave();
 
-connection.closed().then(() => {
+rmqConn.closed().then(() => {
   console.log("Closed peacefully");
 }).catch((error) => {
   console.error("Connection closed with error");
