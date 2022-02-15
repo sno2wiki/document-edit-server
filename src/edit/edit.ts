@@ -1,7 +1,10 @@
 import { rmqChan } from "../main.ts";
 import { updateView } from "../view/mod.ts";
-import { CommitUnion, Line } from "../types.ts";
+import { CommitUnion, Line, Result } from "../types.ts";
 import { overrideCache } from "../cache/mod.ts";
+import { processUpdate } from "./process_update.ts";
+import { processDelete } from "./process_delete.ts";
+import { processInsert } from "./process_insert.ts";
 
 export const setupEdit = async () => {
   await rmqChan.declareExchange({ exchange: "edit", type: "topic", durable: true });
@@ -12,7 +15,7 @@ export const setupEdit = async () => {
     { queue: "edit" },
     async (args, props, data) => {
       const { documentId, lines: previousLines, commits } = JSON.parse(new TextDecoder().decode(data));
-      const { lines: nextLines } = build(previousLines, commits);
+      const { lines: nextLines } = processCommits({ previousLines, commits });
       await overrideCache(documentId, { lines: nextLines });
       await updateView(documentId);
       await rmqChan.ack({ deliveryTag: args.deliveryTag });
@@ -20,35 +23,32 @@ export const setupEdit = async () => {
   );
 };
 
-const build = (previousLines: Line[], commits: CommitUnion[]) => {
+const processCommits = (
+  { previousLines, commits }: { commits: CommitUnion[]; previousLines: Line[] },
+) => {
   let nextLines = previousLines;
   let head: string | undefined = undefined;
+
   for (const commit of commits) {
-    switch (commit.type) {
-      case "UPDATE": {
-        const { payload } = commit;
-        nextLines = nextLines.map((line) => line.id === payload.lineId ? { ...line, text: payload.text } : line);
-        head = commit.id;
-        break;
-      }
-      case "INSERT": {
-        const { payload } = commit;
-        const index = nextLines.findIndex((line) => line.id === payload.prevLineId);
-        if (index !== -1) {
-          nextLines = [
-            ...nextLines.slice(0, index + 1),
-            { id: payload.newLineId, text: payload.text },
-            ...nextLines.slice(index + 1),
-          ];
-          head = commit.id;
-        }
-        break;
-      }
-      case "DELETE": {
-        nextLines = nextLines;
-        break;
-      }
-    }
+    const result = processor(commit, nextLines);
+
+    if (result.status === "bad") break;
+
+    head = commit.id;
+
+    nextLines = result.lines;
   }
-  return { lines: nextLines };
+
+  return { lines: nextLines, head };
+};
+
+export const processor = (commit: CommitUnion, previousLines: Line[]): Result<{}, { lines: Line[] }> => {
+  switch (commit.type) {
+    case "UPDATE":
+      return processUpdate(commit.payload, previousLines);
+    case "INSERT":
+      return processInsert(commit.payload, previousLines);
+    case "DELETE":
+      return processDelete(commit.payload, previousLines);
+  }
 };
