@@ -7,8 +7,12 @@ const mongoClient = new MongoClient();
 await mongoClient.connect(Deno.env.get("MONGO_URI")!);
 
 const redisClient = await connect(parseURL(Deno.env.get("REDIS_URI")!));
+
+const calcKey = (documentId: string) => "edit." + documentId;
 export const loadCache = async (documentId: string): Promise<Result> => {
-  const cached = await redisClient.get(documentId);
+  const redisKey = calcKey(documentId);
+
+  const cached = await redisClient.get(redisKey);
   if (cached) return { status: "ok" };
 
   const stored = await mongoClient
@@ -18,14 +22,16 @@ export const loadCache = async (documentId: string): Promise<Result> => {
 
   if (!stored) return { status: "bad" };
 
-  const { lines } = stored;
-  const doc: Doc = { lines };
-  await redisClient.set(documentId, JSON.stringify(doc));
+  const { lines, head } = stored;
+  const doc: Doc = { lines, head };
+  await redisClient.set(redisKey, JSON.stringify(doc));
   return { status: "ok" };
 };
 
 export const storeCache = async (documentId: string): Promise<Result> => {
-  const cached = await redisClient.get(documentId);
+  const redisKey = calcKey(documentId);
+
+  const cached = await redisClient.get(redisKey);
   if (!cached) return { status: "bad" };
 
   const doc: Doc = JSON.parse(cached);
@@ -34,11 +40,14 @@ export const storeCache = async (documentId: string): Promise<Result> => {
     { $set: { lines: doc.lines } },
     { upsert: true },
   );
+  await redisClient.del(redisKey);
   return { status: "ok" };
 };
 
 export const fetchCache = async (documentId: string): Promise<Result<{}, { doc: Doc }>> => {
-  const cached = await redisClient.get(documentId);
+  const redisKey = calcKey(documentId);
+
+  const cached = await redisClient.get(redisKey);
   if (!cached) return { status: "bad" };
 
   const doc: Doc = JSON.parse(cached);
@@ -47,7 +56,9 @@ export const fetchCache = async (documentId: string): Promise<Result<{}, { doc: 
 
 export const overrideCache = async (documentId: string, doc: Doc): Promise<Result> => {
   try {
-    await redisClient.set(documentId, JSON.stringify(doc));
+    const redisKey = calcKey(documentId);
+
+    await redisClient.set(redisKey, JSON.stringify(doc));
     return { status: "ok" };
   } catch (e) {
     console.dir(e);
