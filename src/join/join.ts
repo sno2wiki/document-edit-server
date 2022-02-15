@@ -6,7 +6,7 @@ import { Doc } from "../types.ts";
 
 export const setupJoin = async () => {
   await channel.declareExchange({ exchange: "join", type: "topic", durable: true });
-  await channel.declareQueue({ queue: "join.*", durable: true });
+  await channel.declareQueue({ queue: "join", durable: true });
   await channel.bindQueue({ exchange: "join", queue: "join", routingKey: "join.*" });
 
   await channel.consume(
