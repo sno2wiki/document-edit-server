@@ -1,7 +1,5 @@
-import { Doc } from "../types.ts";
 import { channel } from "../main.ts";
-
-export const cache = new Map<string, Doc>();
+import { fetchCache } from "../cache/mod.ts";
 
 export const setupView = async () => {
   await channel.declareExchange({ exchange: "view", type: "topic", durable: true });
@@ -9,14 +7,14 @@ export const setupView = async () => {
   await channel.bindQueue({ exchange: "view", queue: "view", routingKey: "view.*" });
 };
 
-const publishView = (documentId: string, doc: Doc) => {
-  return channel.publish(
+export const updateView = async (documentId: string) => {
+  const cache = await fetchCache(documentId);
+  if (cache.status === "bad") return { status: "bad" };
+
+  await channel.publish(
     { exchange: "view", routingKey: "view." + documentId },
     { contentType: "application/json" },
-    new TextEncoder().encode(JSON.stringify({ documentId, ...doc })),
+    new TextEncoder().encode(JSON.stringify({ documentId, ...cache.doc })),
   );
-};
-
-export const updateView = async (documentId: string, doc: Doc) => {
-  await publishView(documentId, doc);
+  return { status: "ok" };
 };

@@ -1,6 +1,7 @@
 import { channel } from "../main.ts";
 import { updateView } from "../view/mod.ts";
 import { CommitUnion, Line } from "../types.ts";
+import { overrideCache } from "../cache/mod.ts";
 
 export const setupEdit = async () => {
   await channel.declareExchange({ exchange: "edit", type: "topic", durable: true });
@@ -12,7 +13,8 @@ export const setupEdit = async () => {
     async (args, props, data) => {
       const { documentId, lines: previousLines, commits } = JSON.parse(new TextDecoder().decode(data));
       const { lines: nextLines } = build(previousLines, commits);
-      await updateView(documentId, { lines: nextLines });
+      await overrideCache(documentId, { lines: nextLines });
+      await updateView(documentId);
       await channel.ack({ deliveryTag: args.deliveryTag });
     },
   );

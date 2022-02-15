@@ -8,3 +8,10 @@ export type CommitUnion = (
     | { type: "DELETE"; payload: { lineId: string } }
   )
 );
+
+export type Result<
+  TBad extends Record<string, unknown> = Record<string, unknown>,
+  TOk extends Record<string, unknown> = Record<string, unknown>,
+> =
+  | ({ status: "ok" } & TOk)
+  | ({ status: "bad" } & TBad);
