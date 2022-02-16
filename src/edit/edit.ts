@@ -14,9 +14,14 @@ export const setupEdit = async () => {
   await rmqChan.consume(
     { queue: "edit" },
     async (args, props, data) => {
-      const { documentId, lines: previousLines, commits } = JSON.parse(new TextDecoder().decode(data));
-      const { lines: nextLines } = processCommits({ previousLines, commits });
-      await overrideCache(documentId, { lines: nextLines });
+      const {
+        documentId,
+        commits,
+        lines: previousLines,
+        head: previousHead,
+      } = JSON.parse(new TextDecoder().decode(data));
+      const { lines: nextLines, head: nextHead } = processCommits({ commits, previousLines, previousHead });
+      await overrideCache(documentId, { lines: nextLines, head: nextHead });
       await updateView(documentId);
       await rmqChan.ack({ deliveryTag: args.deliveryTag });
     },
@@ -24,22 +29,26 @@ export const setupEdit = async () => {
 };
 
 const processCommits = (
-  { previousLines, commits }: { commits: CommitUnion[]; previousLines: Line[] },
+  { previousLines, commits, previousHead }: {
+    commits: CommitUnion[];
+    previousLines: Line[];
+    previousHead: string;
+  },
 ) => {
   let nextLines = previousLines;
-  let head: string | undefined = undefined;
+  let nextHead: string = previousHead;
 
   for (const commit of commits) {
     const result = processor(commit, nextLines);
 
     if (result.status === "bad") break;
 
-    head = commit.id;
+    nextHead = commit.id;
 
     nextLines = result.lines;
   }
 
-  return { lines: nextLines, head };
+  return { lines: nextLines, head: nextHead };
 };
 
 export const processor = (commit: CommitUnion, previousLines: Line[]): Result<{}, { lines: Line[] }> => {

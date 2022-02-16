@@ -4,6 +4,7 @@ export const processUpdate = (payload: UpdateCommitPayload, previousLines: Line[
   const index = previousLines.findIndex(({ id }) => (id === payload.lineId));
   if (index === -1) return { status: "bad" };
 
-  previousLines[index] = { id: payload.lineId, text: payload.text };
+  previousLines.splice(index, 1, { id: payload.lineId, text: payload.text });
+
   return { status: "ok", lines: previousLines };
 };
