@@ -11,7 +11,7 @@ export const setupJoin = async () => {
   await rmqChan.consume(
     { queue: "join" },
     async (args, props, data) => {
-      const { userId, documentId } = JSON.parse(new TextDecoder().decode(data));
+      const { documentId } = JSON.parse(new TextDecoder().decode(data));
 
       const cacheResult = await loadCache(documentId);
       if (cacheResult.status === "ok") await updateView(documentId);
