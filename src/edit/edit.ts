@@ -21,7 +21,7 @@ export const setupEdit = async () => {
         head: previousHead,
       } = JSON.parse(new TextDecoder().decode(data));
       const { lines: nextLines, head: nextHead } = processCommits({ commits, previousLines, previousHead });
-      await overrideCache(documentId, { lines: nextLines, head: nextHead });
+      await overrideCache(documentId, { lines: nextLines });
       await updateView(documentId);
       await rmqChan.ack({ deliveryTag: args.deliveryTag });
     },

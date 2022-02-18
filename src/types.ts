@@ -1,5 +1,5 @@
 export type Line = { id: string; text: string };
-export type Doc = { lines: Line[]; head: string };
+export type Doc = { lines: Line[] };
 
 export type UpdateCommitPayload = { lineId: string; text: string };
 export type InsertCommitPayload = { prevLineId: string; newLineId: string; text: string };
